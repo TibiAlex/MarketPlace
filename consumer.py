@@ -36,6 +36,7 @@ class Consumer(Thread):
         self.marketplace = marketplace
         self.retry_wait_time = retry_wait_time
         Thread.__init__(self, **kwargs)
+        self.name = kwargs['name']
 
     def run(self):
         for cart in self.carts:
@@ -52,5 +53,6 @@ class Consumer(Thread):
 
                     elif order["type"] == "remove":
                         self.marketplace.remove_from_cart(cart_id, order["product"])
-
-            self.marketplace.place_order(cart_id)
+            order = self.marketplace.place_order(cart_id)
+            for product in order:
+                print("{} bought {}". format(self.name, product))

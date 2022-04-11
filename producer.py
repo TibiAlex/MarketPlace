@@ -41,7 +41,7 @@ class Producer(Thread):
     def run(self):
         while True:
             for product in self.products:
-                for i in range(product[1]):
+                for _ in range(product[1]):
                     time.sleep(product[2])
                     result = self.marketplace.publish(self.producer_id, product[0])
                     while not result:

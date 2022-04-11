@@ -43,7 +43,7 @@ class Consumer(Thread):
             cart_id = self.marketplace.new_cart()
 
             for order in cart:
-                for j in range(order["quantity"]):
+                for _ in range(order["quantity"]):
 
                     if order["type"] == "add":
                         result = self.marketplace.add_to_cart(cart_id, order["product"])
@@ -55,4 +55,4 @@ class Consumer(Thread):
                         self.marketplace.remove_from_cart(cart_id, order["product"])
             order = self.marketplace.place_order(cart_id)
             for product in order:
-                print("{} bought {}". format(self.name, product))
+                print(f'{self.name} bought {product}')

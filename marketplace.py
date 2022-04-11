@@ -6,7 +6,6 @@ Assignment 1
 March 2021
 """
 import threading
-import logging
 
 
 class Marketplace:
@@ -25,7 +24,6 @@ class Marketplace:
         self.queue_size_per_producer = queue_size_per_producer
         self.lock_p = threading.Lock()  # lock :P
         self.lock_c = threading.Lock()
-        self.lock = threading.Lock()
 
         self.cart_number = -1
         self.cart_dex = {}
@@ -36,10 +34,10 @@ class Marketplace:
         """
         Returns an id for the producer that calls this.
         """
-        self.lock_p.acquire()
-        self.producer_number += 1
-        self.producer_dex[self.producer_number] = []
-        self.lock_p.release()
+        with self.lock_p:
+            self.producer_number += 1
+            self.producer_dex[self.producer_number] = []
+
         return self.producer_number
 
     def publish(self, producer_id, product):
@@ -65,10 +63,9 @@ class Marketplace:
 
         :returns an int representing the cart_id
         """
-        self.lock_c.acquire()
-        self.cart_number += 1
+        with self.lock_c:
+            self.cart_number += 1
         self.cart_dex[self.cart_number] = []
-        self.lock_c.release()
 
         return self.cart_number
 
@@ -84,16 +81,13 @@ class Marketplace:
 
         :returns True or False. If the caller receives False, it should wait and then try again
         """
-        self.lock_c.acquire()
-        for producer in self.producer_dex:
-            for i, pair in enumerate(self.producer_dex[producer]):
-                if product == pair[0] and pair[1] == 1:
-                    self.cart_dex[cart_id].append((producer, product))
-                    self.producer_dex[producer][i][1] = 0
-                    self.lock_c.release()
-                    return True
-        self.lock_c.release()
-
+        with self.lock_p:
+            for producer, _ in self.producer_dex.items():
+                for i, pair in enumerate(self.producer_dex[producer]):
+                    if product == pair[0] and pair[1] == 1:
+                        self.cart_dex[cart_id].append((producer, product))
+                        self.producer_dex[producer][i][1] = 0
+                        return True
         return False
 
     def remove_from_cart(self, cart_id, product):
@@ -106,20 +100,18 @@ class Marketplace:
         :type product: Product
         :param product: the product to remove from cart
         """
-        self.lock_c.acquire()
-
-        for pair in self.cart_dex[cart_id]:
-            if pair[1] == product:
-                producer_id = pair[0]
-                if pair in  self.cart_dex[cart_id]:
-                    self.cart_dex[cart_id].remove(pair)
-                for i in range(len(self.producer_dex[producer_id])):
-                    if self.producer_dex[producer_id][i][0] == product and \
-                            self.producer_dex[producer_id][i][1] == 0:
-                        self.producer_dex[producer_id][i][1] = 1
-                        break
-                break
-        self.lock_c.release()
+        with self.lock_c:
+            for pair in self.cart_dex[cart_id]:
+                if pair[1] == product:
+                    producer_id = pair[0]
+                    if pair in self.cart_dex[cart_id]:
+                        self.cart_dex[cart_id].remove(pair)
+                    for i in range(len(self.producer_dex[producer_id])):
+                        if self.producer_dex[producer_id][i][0] == product and \
+                                self.producer_dex[producer_id][i][1] == 0:
+                            self.producer_dex[producer_id][i][1] = 1
+                            break
+                    break
 
     def place_order(self, cart_id):
         """
@@ -128,14 +120,13 @@ class Marketplace:
         :type cart_id: Int
         :param cart_id: id cart
         """
-        self.lock.acquire()
-        order = []
-        for pair in self.cart_dex[cart_id]:
-            order.append(pair[1])
-            for i in range(len(self.producer_dex[pair[0]])):
-                if self.producer_dex[pair[0]][i][0] == pair[1] and \
-                        self.producer_dex[pair[0]][i][1] == 0:
-                    del self.producer_dex[pair[0]][i]
-                    break
-        self.lock.release()
+        with self.lock_c:
+            order = []
+            for pair in self.cart_dex[cart_id]:
+                order.append(pair[1])
+                for i in range(len(self.producer_dex[pair[0]])):
+                    if self.producer_dex[pair[0]][i][0] == pair[1] and \
+                            self.producer_dex[pair[0]][i][1] == 0:
+                        del self.producer_dex[pair[0]][i]
+                        break
         return order
